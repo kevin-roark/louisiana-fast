@@ -4,7 +4,7 @@ var $ = require('jquery');
 var buzz = require('./lib/buzz');
 var kt = require('kutility');
 
-var SheenMesh = require('./sheen-mesh');
+var modelLoader = require('./util/model-loader');
 import {createGround, createWall} from './util/builder.es6';
 import {SheenScene} from './sheen-scene.es6';
 
@@ -43,14 +43,26 @@ export class MainScene extends SheenScene {
         wall.addTo(this.scene);
       });
 
-      this.gator = new SheenMesh({
-        modelName: '/js/models/gator.json',
-        position: new THREE.Vector3(0, -5, -100),
-        scale: 10,
-        ignorePhysics: true
-      });
-      this.gator.addTo(this.scene, () => {
-        console.log('gator is live..');
+      // give me a gator
+      modelLoader('/js/models/gator.json', (geometry, materials) => {
+        if (!materials) {
+          var skinMap = THREE.ImageUtils.loadTexture('/media/skindisp.png');
+          skinMap.wrapS = skinMap.wrapT = THREE.RepeatWrapping;
+          skinMap.repeat.set(10, 10);
+
+          materials = [new THREE.MeshPhongMaterial({
+            color: 0x666666,
+            bumpMap: skinMap
+          })];
+        }
+
+        var faceMaterial = new THREE.MeshFaceMaterial(materials);
+
+        this.gator = new THREE.Mesh(geometry, faceMaterial);
+        this.gator.castShadow = true;
+        this.gator.scale.set(7, 7, 7);
+        this.gator.position.set(0, -5, -80);
+        this.scene.add(this.gator);
       });
 
       // move up
@@ -60,6 +72,8 @@ export class MainScene extends SheenScene {
 
   doTimedWork() {
     super.doTimedWork();
+
+    this.toggleGatorWireframe();
   }
 
   update(dt) {
@@ -68,6 +82,14 @@ export class MainScene extends SheenScene {
     if (this.lightContainer && this.controlObject) {
       this.lightContainer.position.y = this.controlObject.position.y - 5;
     }
+  }
+
+  toggleGatorWireframe() {
+    var material = this.gator.material.materials[0];
+    material.wireframe = !material.wireframe;
+
+    var nextToggle = kt.randInt(250, 1000);
+    setTimeout(this.toggleGatorWireframe.bind(this), nextToggle);
   }
 
   // Interaction

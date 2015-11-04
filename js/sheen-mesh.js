@@ -95,11 +95,7 @@ SheenMesh.prototype.createMesh = function(callback) {
 
     loader(self.modelName, function(geometry, materials) {
       self.geometry = geometry;
-
-      if (!materials) {
-        materials = [new THREE.MeshBasicMaterial({color: 0x666666, wireframe: true})];
-      }
-
+      
       self.materials = materials;
       self.faceMaterial = new THREE.MeshFaceMaterial(materials);
 

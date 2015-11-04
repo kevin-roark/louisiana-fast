@@ -92,7 +92,7 @@ class Sheen extends ThreeBoiler {
     this.updateLoadingView();
     setTimeout(() => {
       this.didFinishLoading();
-    }, 2000);
+    }, 500);
 
     this.scene.simulate();
 

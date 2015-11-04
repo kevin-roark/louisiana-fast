@@ -2558,7 +2558,7 @@ var $ = require("jquery");
 var buzz = require("./lib/buzz");
 var kt = require("kutility");
 
-var SheenMesh = require("./sheen-mesh");
+var modelLoader = require("./util/model-loader");
 
 var _utilBuilderEs6 = require("./util/builder.es6");
 
@@ -2606,14 +2606,26 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
             wall.addTo(_this.scene);
           });
 
-          this.gator = new SheenMesh({
-            modelName: "/js/models/gator.json",
-            position: new THREE.Vector3(0, -5, -100),
-            scale: 10,
-            ignorePhysics: true
-          });
-          this.gator.addTo(this.scene, function () {
-            console.log("gator is live..");
+          // give me a gator
+          modelLoader("/js/models/gator.json", function (geometry, materials) {
+            if (!materials) {
+              var skinMap = THREE.ImageUtils.loadTexture("/media/skindisp.png");
+              skinMap.wrapS = skinMap.wrapT = THREE.RepeatWrapping;
+              skinMap.repeat.set(10, 10);
+
+              materials = [new THREE.MeshPhongMaterial({
+                color: 6710886,
+                bumpMap: skinMap
+              })];
+            }
+
+            var faceMaterial = new THREE.MeshFaceMaterial(materials);
+
+            _this.gator = new THREE.Mesh(geometry, faceMaterial);
+            _this.gator.castShadow = true;
+            _this.gator.scale.set(7, 7, 7);
+            _this.gator.position.set(0, -5, -80);
+            _this.scene.add(_this.gator);
           });
 
           // move up
@@ -2624,6 +2636,8 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
     doTimedWork: {
       value: function doTimedWork() {
         _get(Object.getPrototypeOf(MainScene.prototype), "doTimedWork", this).call(this);
+
+        this.toggleGatorWireframe();
       }
     },
     update: {
@@ -2633,6 +2647,15 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
         if (this.lightContainer && this.controlObject) {
           this.lightContainer.position.y = this.controlObject.position.y - 5;
         }
+      }
+    },
+    toggleGatorWireframe: {
+      value: function toggleGatorWireframe() {
+        var material = this.gator.material.materials[0];
+        material.wireframe = !material.wireframe;
+
+        var nextToggle = kt.randInt(250, 1000);
+        setTimeout(this.toggleGatorWireframe.bind(this), nextToggle);
       }
     },
     spacebarPressed: {
@@ -2695,7 +2718,7 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
   return MainScene;
 })(SheenScene);
 
-},{"./lib/buzz":3,"./sheen-mesh":7,"./sheen-scene.es6":8,"./util/builder.es6":10,"jquery":13,"kutility":14,"three":15}],6:[function(require,module,exports){
+},{"./lib/buzz":3,"./sheen-scene.es6":8,"./util/builder.es6":10,"./util/model-loader":12,"jquery":13,"kutility":14,"three":15}],6:[function(require,module,exports){
 "use strict";
 
 var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -2811,7 +2834,7 @@ var Sheen = (function (_ThreeBoiler) {
         this.updateLoadingView();
         setTimeout(function () {
           _this.didFinishLoading();
-        }, 2000);
+        }, 500);
 
         this.scene.simulate();
 
@@ -3015,10 +3038,6 @@ SheenMesh.prototype.createMesh = function (callback) {
 
     loader(self.modelName, function (geometry, materials) {
       self.geometry = geometry;
-
-      if (!materials) {
-        materials = [new THREE.MeshBasicMaterial({ color: 6710886, wireframe: true })];
-      }
 
       self.materials = materials;
       self.faceMaterial = new THREE.MeshFaceMaterial(materials);
