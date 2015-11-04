@@ -2558,6 +2558,8 @@ var $ = require("jquery");
 var buzz = require("./lib/buzz");
 var kt = require("kutility");
 
+var SheenMesh = require("./sheen-mesh");
+
 var _utilBuilderEs6 = require("./util/builder.es6");
 
 var createGround = _utilBuilderEs6.createGround;
@@ -2602,6 +2604,16 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
           this.walls = [createWall({ direction: "back", roomLength: this.roomLength, wallHeight: this.roomLength }), createWall({ direction: "left", roomLength: this.roomLength, wallHeight: this.roomLength }), createWall({ direction: "right", roomLength: this.roomLength, wallHeight: this.roomLength }), createWall({ direction: "front", roomLength: this.roomLength, wallHeight: this.roomLength })];
           this.walls.forEach(function (wall) {
             wall.addTo(_this.scene);
+          });
+
+          this.gator = new SheenMesh({
+            modelName: "/js/models/gator.json",
+            position: new THREE.Vector3(0, -5, -100),
+            scale: 10,
+            ignorePhysics: true
+          });
+          this.gator.addTo(this.scene, function () {
+            console.log("gator is live..");
           });
 
           // move up
@@ -2683,7 +2695,7 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
   return MainScene;
 })(SheenScene);
 
-},{"./lib/buzz":3,"./sheen-scene.es6":8,"./util/builder.es6":10,"jquery":13,"kutility":14,"three":15}],6:[function(require,module,exports){
+},{"./lib/buzz":3,"./sheen-mesh":7,"./sheen-scene.es6":8,"./util/builder.es6":10,"jquery":13,"kutility":14,"three":15}],6:[function(require,module,exports){
 "use strict";
 
 var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -3004,6 +3016,10 @@ SheenMesh.prototype.createMesh = function (callback) {
     loader(self.modelName, function (geometry, materials) {
       self.geometry = geometry;
 
+      if (!materials) {
+        materials = [new THREE.MeshBasicMaterial({ color: 6710886, wireframe: true })];
+      }
+
       self.materials = materials;
       self.faceMaterial = new THREE.MeshFaceMaterial(materials);
 
@@ -3011,7 +3027,7 @@ SheenMesh.prototype.createMesh = function (callback) {
         self.material = self.faceMaterial;
         self.mesh = new THREE.Mesh(geometry, self.material);
       } else {
-        self.material = Physijs.createMaterial(self.faceMaterial, this.friction, this.restitution);
+        self.material = Physijs.createMaterial(self.faceMaterial, self.friction, self.restitution);
         self.mesh = new Physijs.ConvexMesh(geometry, self.material, self.mass);
       }
 
@@ -3588,46 +3604,15 @@ module.exports.computeShit = function (geometry) {
 
 var THREE = require("three");
 
-var cache = {};
+var loader = new THREE.JSONLoader();
 
 module.exports = function loadModel(name, callback) {
   if (typeof callback !== "function") {
     return;
-  }if (cache[name]) {
-    fetch(name, callback);
-    return;
-  }
-
-  var loader = new THREE.JSONLoader();
-  loader.load(name, function (geometry, materials) {
-    add(name, geometry, materials);
-    fetch(name, callback);
+  }loader.load(name, function (geometry, materials) {
+    callback(geometry, materials);
   });
 };
-
-function add(name, geometry, materials) {
-  cache[name] = {
-    geometry: geometry,
-    materials: materials
-  };
-}
-
-function fetch(name, callback) {
-  var cached = cache[name];
-
-  var geometry = cached.geometry.clone();
-  var materials;
-  if (Array.isArray(cached.materials)) {
-    materials = [];
-    for (var i = 0; i < cached.materials.length; i++) {
-      materials.push(cached.materials[i].clone());
-    }
-  } else {
-    materials = cached.materials.clone();
-  }
-
-  callback(geometry, materials);
-}
 
 },{"three":15}],13:[function(require,module,exports){
 /*!

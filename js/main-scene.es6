@@ -4,6 +4,7 @@ var $ = require('jquery');
 var buzz = require('./lib/buzz');
 var kt = require('kutility');
 
+var SheenMesh = require('./sheen-mesh');
 import {createGround, createWall} from './util/builder.es6';
 import {SheenScene} from './sheen-scene.es6';
 
@@ -40,6 +41,16 @@ export class MainScene extends SheenScene {
       ];
       this.walls.forEach((wall) => {
         wall.addTo(this.scene);
+      });
+
+      this.gator = new SheenMesh({
+        modelName: '/js/models/gator.json',
+        position: new THREE.Vector3(0, -5, -100),
+        scale: 10,
+        ignorePhysics: true
+      });
+      this.gator.addTo(this.scene, () => {
+        console.log('gator is live..');
       });
 
       // move up

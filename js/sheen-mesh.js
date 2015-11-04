@@ -96,6 +96,10 @@ SheenMesh.prototype.createMesh = function(callback) {
     loader(self.modelName, function(geometry, materials) {
       self.geometry = geometry;
 
+      if (!materials) {
+        materials = [new THREE.MeshBasicMaterial({color: 0x666666, wireframe: true})];
+      }
+
       self.materials = materials;
       self.faceMaterial = new THREE.MeshFaceMaterial(materials);
 
@@ -104,7 +108,7 @@ SheenMesh.prototype.createMesh = function(callback) {
         self.mesh = new THREE.Mesh(geometry, self.material);
       }
       else {
-        self.material = Physijs.createMaterial(self.faceMaterial, this.friction, this.restitution);
+        self.material = Physijs.createMaterial(self.faceMaterial, self.friction, self.restitution);
         self.mesh = new Physijs.ConvexMesh(geometry, self.material, self.mass);
       }
 
