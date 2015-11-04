@@ -3,6 +3,7 @@ var THREE = require('three');
 var $ = require('jquery');
 var buzz = require('./lib/buzz');
 var kt = require('kutility');
+var TWEEN = require('tween.js');
 
 var modelLoader = require('./util/model-loader');
 import {createGround, createWall} from './util/builder.es6';
@@ -73,6 +74,8 @@ export class MainScene extends SheenScene {
   doTimedWork() {
     super.doTimedWork();
 
+    this.setupTicker();
+
     this.toggleGatorWireframe();
   }
 
@@ -82,6 +85,54 @@ export class MainScene extends SheenScene {
     if (this.lightContainer && this.controlObject) {
       this.lightContainer.position.y = this.controlObject.position.y - 5;
     }
+  }
+
+  setupTicker() {
+    var lines = [
+      'Oh, Slidell?',
+      'the, dirty, de.al',
+      'should not be from, that place',
+      'went to a swamp tour, right there, across the bridge'
+    ];
+
+    var index = 0;
+    var doNextLine = () => {
+      this.doTickerLine(lines[index], 8000, () => {
+        index += 1;
+        if (index < lines.length) {
+          doNextLine();
+        }
+      });
+    };
+
+    doNextLine();
+  }
+
+  doTickerLine(text, duration, callback) {
+    let $tickerEl = $('<div>' + text + '</div>');
+    $tickerEl.css('position', 'fixed');
+    $tickerEl.css('top', '40px');
+    $tickerEl.css('left', '0px');
+    $tickerEl.css('color', 'rgb(237, 48, 14)');
+    $tickerEl.css('font-size', '40px');
+    $tickerEl.css('font-weight', 'bold');
+    $tickerEl.css('letter-spacing', '1px');
+
+    var tickerTransform = {x: window.innerWidth};
+    $tickerEl.css('transform', 'translate(' + tickerTransform.x + 'px, 0px)');
+
+    this.domContainer.append($tickerEl);
+
+    var tickerTransformTarget = {x: -$tickerEl.width()};
+    var tween = new TWEEN.Tween(tickerTransform).to(tickerTransformTarget, duration);
+    tween.onUpdate(() => {
+      $tickerEl.css('transform', 'translate(' + tickerTransform.x + 'px, 0px)');
+    });
+    tween.onComplete(() => {
+      $tickerEl.remove();
+      if (callback) callback();
+    });
+    tween.start();
   }
 
   toggleGatorWireframe() {

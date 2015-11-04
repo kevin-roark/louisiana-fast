@@ -2,6 +2,7 @@
 let $ = require('jquery');
 let THREE = require('three');
 let Physijs = require('./lib/physi.js');
+let TWEEN = require('tween.js');
 
 import {ThreeBoiler} from './three-boiler.es6';
 import {MainScene} from './main-scene.es6';
@@ -102,6 +103,7 @@ class Sheen extends ThreeBoiler {
   render() {
     super.render();
 
+    TWEEN.update();
     this.controls.update();
     this.mainScene.update(this.clock.getDelta());
   }
