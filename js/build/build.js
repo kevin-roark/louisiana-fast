@@ -2607,27 +2607,9 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
             wall.addTo(_this.scene);
           });
 
-          // give me a gator
-          modelLoader("/js/models/gator.json", function (geometry, materials) {
-            if (!materials) {
-              var skinMap = THREE.ImageUtils.loadTexture("/media/skindisp.png");
-              skinMap.wrapS = skinMap.wrapT = THREE.RepeatWrapping;
-              skinMap.repeat.set(10, 10);
-
-              materials = [new THREE.MeshPhongMaterial({
-                color: 6710886,
-                bumpMap: skinMap
-              })];
-            }
-
-            var faceMaterial = new THREE.MeshFaceMaterial(materials);
-
-            _this.gator = new THREE.Mesh(geometry, faceMaterial);
-            _this.gator.castShadow = true;
-            _this.gator.scale.set(7, 7, 7);
-            _this.gator.position.set(0, -5, -80);
-            _this.scene.add(_this.gator);
-          });
+          // start with one gator
+          this.gators = [];
+          this.makeGator();
 
           // move up
           this.controlObject.position.y = 5;
@@ -2639,8 +2621,6 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
         _get(Object.getPrototypeOf(MainScene.prototype), "doTimedWork", this).call(this);
 
         this.setupTicker();
-
-        this.toggleGatorWireframe();
       }
     },
     update: {
@@ -2699,13 +2679,58 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
         tween.start();
       }
     },
-    toggleGatorWireframe: {
-      value: function toggleGatorWireframe() {
-        var material = this.gator.material.materials[0];
-        material.wireframe = !material.wireframe;
+    makeGator: {
+      value: function makeGator() {
+        var _this = this;
 
-        var nextToggle = kt.randInt(250, 1000);
-        setTimeout(this.toggleGatorWireframe.bind(this), nextToggle);
+        var grayscale = Math.random() < 0.67;
+
+        modelLoader("/js/models/gator.json", function (geometry, materials) {
+          if (!materials) {
+            var skinMap = THREE.ImageUtils.loadTexture("/media/skindisp.png");
+            skinMap.wrapS = skinMap.wrapT = THREE.RepeatWrapping;
+            skinMap.repeat.set(10, 10);
+
+            materials = [new THREE.MeshPhongMaterial({
+              color: grayscale ? 6710886 : 65280,
+              bumpMap: skinMap
+            })];
+          }
+
+          var faceMaterial = new THREE.MeshFaceMaterial(materials);
+
+          var gator = new THREE.Mesh(geometry, faceMaterial);
+          gator.castShadow = true;
+          gator.scale.set(7, 7, 7);
+          gator.position.set(_this.randomPointInRoom(), -5, _this.randomPointInRoom());
+          gator._trueMaterial = gator.material.materials[0];
+
+          gator.toggleWireframe = function () {
+            gator._trueMaterial.wireframe = !gator._trueMaterial.wireframe;
+
+            var nextToggle = kt.randInt(250, 1000);
+            setTimeout(gator.toggleWireframe, nextToggle);
+          };
+          gator.toggleWireframe();
+
+          if (!grayscale) {
+            gator.toggleColor = function () {
+              gator._trueMaterial.color = new THREE.Color(parseInt(Math.random() * 16777215));
+
+              var nextToggle = kt.randInt(250, 1000);
+              setTimeout(gator.toggleColor, nextToggle);
+            };
+            gator.toggleColor();
+          }
+
+          _this.scene.add(gator);
+          _this.gators.push(gator);
+        });
+      }
+    },
+    randomPointInRoom: {
+      value: function randomPointInRoom() {
+        return (Math.random() - 0.5) * this.roomLength;
       }
     },
     spacebarPressed: {

@@ -44,27 +44,9 @@ export class MainScene extends SheenScene {
         wall.addTo(this.scene);
       });
 
-      // give me a gator
-      modelLoader('/js/models/gator.json', (geometry, materials) => {
-        if (!materials) {
-          var skinMap = THREE.ImageUtils.loadTexture('/media/skindisp.png');
-          skinMap.wrapS = skinMap.wrapT = THREE.RepeatWrapping;
-          skinMap.repeat.set(10, 10);
-
-          materials = [new THREE.MeshPhongMaterial({
-            color: 0x666666,
-            bumpMap: skinMap
-          })];
-        }
-
-        var faceMaterial = new THREE.MeshFaceMaterial(materials);
-
-        this.gator = new THREE.Mesh(geometry, faceMaterial);
-        this.gator.castShadow = true;
-        this.gator.scale.set(7, 7, 7);
-        this.gator.position.set(0, -5, -80);
-        this.scene.add(this.gator);
-      });
+      // start with one gator
+      this.gators = [];
+      this.makeGator();
 
       // move up
       this.controlObject.position.y = 5;
@@ -75,8 +57,6 @@ export class MainScene extends SheenScene {
     super.doTimedWork();
 
     this.setupTicker();
-
-    this.toggleGatorWireframe();
   }
 
   update(dt) {
@@ -135,12 +115,54 @@ export class MainScene extends SheenScene {
     tween.start();
   }
 
-  toggleGatorWireframe() {
-    var material = this.gator.material.materials[0];
-    material.wireframe = !material.wireframe;
+  makeGator() {
+    var grayscale = Math.random() < 0.67;
 
-    var nextToggle = kt.randInt(250, 1000);
-    setTimeout(this.toggleGatorWireframe.bind(this), nextToggle);
+    modelLoader('/js/models/gator.json', (geometry, materials) => {
+      if (!materials) {
+        var skinMap = THREE.ImageUtils.loadTexture('/media/skindisp.png');
+        skinMap.wrapS = skinMap.wrapT = THREE.RepeatWrapping;
+        skinMap.repeat.set(10, 10);
+
+        materials = [new THREE.MeshPhongMaterial({
+          color: grayscale ? 0x666666 : 0x00ff00,
+          bumpMap: skinMap
+        })];
+      }
+
+      var faceMaterial = new THREE.MeshFaceMaterial(materials);
+
+      var gator = new THREE.Mesh(geometry, faceMaterial);
+      gator.castShadow = true;
+      gator.scale.set(7, 7, 7);
+      gator.position.set(this.randomPointInRoom(), -5, this.randomPointInRoom());
+      gator._trueMaterial = gator.material.materials[0];
+
+      gator.toggleWireframe = () => {
+        gator._trueMaterial.wireframe = !gator._trueMaterial.wireframe;
+
+        var nextToggle = kt.randInt(250, 1000);
+        setTimeout(gator.toggleWireframe, nextToggle);
+      };
+      gator.toggleWireframe();
+
+      if (!grayscale) {
+        gator.toggleColor = () => {
+          gator._trueMaterial.color = new THREE.Color(parseInt(Math.random() * 16777215));
+
+          var nextToggle = kt.randInt(250, 1000);
+          setTimeout(gator.toggleColor, nextToggle);
+        };
+        gator.toggleColor();
+      }
+
+      this.scene.add(gator);
+      this.gators.push(gator);
+    });
+  }
+
+  randomPointInRoom() {
+    return (Math.random() - 0.5) * this.roomLength;
   }
 
   // Interaction
