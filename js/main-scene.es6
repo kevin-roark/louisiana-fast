@@ -19,6 +19,7 @@ export class MainScene extends SheenScene {
     this.name = "LA FAST";
     this.onPhone = options.onPhone || false;
     this.roomLength = 300;
+    this.halfLength = this.roomLength/2;
   }
 
   /// Overrides
@@ -57,6 +58,15 @@ export class MainScene extends SheenScene {
     super.doTimedWork();
 
     this.setupTicker();
+
+    var gatorAdditionInterval = setInterval(() => {
+      if (this.gators.length < 27) {
+        this.makeGator();
+      }
+      else {
+        clearInterval(gatorAdditionInterval);
+      }
+    }, 2666);
   }
 
   update(dt) {
@@ -64,6 +74,12 @@ export class MainScene extends SheenScene {
 
     if (this.lightContainer && this.controlObject) {
       this.lightContainer.position.y = this.controlObject.position.y - 5;
+    }
+
+    if (this.gators) {
+      for (var i = 0; i < this.gators.length; i++) {
+        this.gators[i].crawl();
+      }
     }
   }
 
@@ -135,25 +151,52 @@ export class MainScene extends SheenScene {
       var gator = new THREE.Mesh(geometry, faceMaterial);
       gator.castShadow = true;
       gator.scale.set(7, 7, 7);
-      gator.position.set(this.randomPointInRoom(), -5, this.randomPointInRoom());
+      gator.position.copy(this.niceGatorPosition());
+      gator.rotation.y = Math.random() * Math.PI * 2;
       gator._trueMaterial = gator.material.materials[0];
 
-      gator.toggleWireframe = () => {
+      gator.resetCrawl = () => {
+        gator.crawlTarget = this.niceGatorPosition();
+        gator.crawlSteps = Math.round(Math.random() * 200) + 50;
+        gator.crawlX = (gator.crawlTarget.x - gator.position.x) / gator.crawlSteps;
+        gator.crawlZ = (gator.crawlTarget.z - gator.position.z) / gator.crawlSteps;
+      };
+      gator.resetCrawl();
+
+      gator.crawl = () => {
+        if (gator.crawlSteps <= 0) {
+          gator.resetCrawl();
+        }
+
+        gator.position.x += gator.crawlX;
+        gator.position.z += gator.crawlZ;
+        gator.crawlSteps -= 1;
+      };
+
+      gator.toggleWireframe = (recurse) => {
         gator._trueMaterial.wireframe = !gator._trueMaterial.wireframe;
 
-        var nextToggle = kt.randInt(250, 1000);
-        setTimeout(gator.toggleWireframe, nextToggle);
+        if (recurse) {
+          var nextToggle = kt.randInt(250, 1000);
+          setTimeout(() => {
+            gator.toggleWireframe(true);
+          }, nextToggle);
+        }
       };
-      gator.toggleWireframe();
+      gator.toggleWireframe(true);
 
       if (!grayscale) {
-        gator.toggleColor = () => {
+        gator.toggleColor = (recurse) => {
           gator._trueMaterial.color = new THREE.Color(parseInt(Math.random() * 16777215));
 
-          var nextToggle = kt.randInt(250, 1000);
-          setTimeout(gator.toggleColor, nextToggle);
+          if (recurse) {
+            var nextToggle = kt.randInt(250, 1000);
+            setTimeout(() => {
+              gator.toggleColor(true);
+            }, nextToggle);
+          }
         };
-        gator.toggleColor();
+        gator.toggleColor(true);
       }
 
       this.scene.add(gator);
@@ -161,8 +204,9 @@ export class MainScene extends SheenScene {
     });
   }
 
-  randomPointInRoom() {
-    return (Math.random() - 0.5) * this.roomLength;
+  niceGatorPosition() {
+    var p = () => { return (Math.random() - 0.5) * (this.roomLength - 5); } ;
+    return new THREE.Vector3(p(), -6, p());
   }
 
   // Interaction
