@@ -79,7 +79,9 @@ export class MainScene extends SheenScene {
 
     if (this.gators) {
       for (var i = 0; i < this.gators.length; i++) {
-        this.gators[i].crawl();
+        var gator = this.gators[i];
+        gator.crawl();
+        gator.grow();
       }
     }
   }
@@ -158,7 +160,7 @@ export class MainScene extends SheenScene {
 
       gator.resetCrawl = () => {
         gator.crawlTarget = this.niceGatorPosition();
-        gator.crawlSteps = Math.round(Math.random() * 200) + 50;
+        gator.crawlSteps = Math.round(Math.random() * 200) + 100;
         gator.crawlX = (gator.crawlTarget.x - gator.position.x) / gator.crawlSteps;
         gator.crawlZ = (gator.crawlTarget.z - gator.position.z) / gator.crawlSteps;
       };
@@ -172,6 +174,24 @@ export class MainScene extends SheenScene {
         gator.position.x += gator.crawlX;
         gator.position.z += gator.crawlZ;
         gator.crawlSteps -= 1;
+      };
+
+      gator.resetGrowth = () => {
+        gator.scaleTarget = Math.random() * 14 + 1;
+        gator.growthSteps = Math.round(Math.random() * 200) + 100;
+        gator.growthInterval = (gator.scaleTarget - gator.scale.x) / gator.growthSteps;
+      };
+      gator.resetGrowth();
+
+      gator.grow = () => {
+        if (gator.growthSteps <= 0) {
+          gator.resetGrowth();
+        }
+
+        var scale = gator.scale.x + gator.growthInterval;
+        gator.scale.set(scale, scale, scale);
+        gator.position.y = -scale + 1;
+        gator.growthSteps -= 1;
       };
 
       gator.toggleWireframe = (recurse) => {
