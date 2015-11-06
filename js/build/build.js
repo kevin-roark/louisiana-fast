@@ -2572,6 +2572,8 @@ var SheenScene = require("./sheen-scene.es6").SheenScene;
 var ColorPossibility = 0.42;
 var SwampProbability = 0.33;
 var MaxNumberOfGators = 36;
+var AscensionDelay = 60 * 1000;
+var AscensionDuration = 90 * 1000;
 
 var MainScene = exports.MainScene = (function (_SheenScene) {
 
@@ -2601,11 +2603,22 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
         _get(Object.getPrototypeOf(MainScene.prototype), "enter", this).call(this);
 
         this.controlObject = this.controls.getObject();
+        this.ascending = false;
+        this.ascensionRotationDelta = 0.0001;
 
         if (!this.domMode) {
+          this.ascensionContainer = new THREE.Object3D();
+          this.scene.add(this.ascensionContainer);
+
+          // link camera to ascension
+          this.ascensionContainer.add(this.controlObject);
+          this.controlObject.position.y = 5;
+
+          // the heaven and the lights
           this.makeLights();
           this.makeSky();
 
+          // the earth
           this.makeGroundTextures();
           this.ground = createGround({
             length: this.roomLength,
@@ -2623,9 +2636,6 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
           // start with one gator
           this.gators = [];
           this.makeGator();
-
-          // move up
-          this.controlObject.position.y = 5;
         }
       }
     },
@@ -2646,6 +2656,8 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
             clearInterval(gatorAdditionInterval);
           }
         }, 2666);
+
+        setTimeout(this.ascend.bind(this), AscensionDelay);
       }
     },
     update: {
@@ -2663,6 +2675,13 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
             gator.grow();
           }
         }
+
+        if (this.ascending) {
+          this.controlObject.rotation.y += this.ascensionRotationDelta;
+          if (this.ascensionRotationDelta < 1.5) {
+            this.ascensionRotationDelta += 0.00001;
+          }
+        }
       }
     },
     spacebarPressed: {
@@ -2674,10 +2693,24 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
     click: {
       value: function click() {}
     },
-    setupTicker: {
+    ascend: {
 
       // Creation
 
+      value: function ascend() {
+        console.log("ascending...");
+        this.ascending = true;
+
+        var ascensionTarget = { y: 1500 };
+        var tween = new TWEEN.Tween(this.ascensionContainer.position).to(ascensionTarget, AscensionDuration);
+        tween.easing(TWEEN.Easing.Quadratic.In);
+        tween.onComplete(function () {
+          console.log("you, are, at, the, top......");
+        });
+        tween.start();
+      }
+    },
+    setupTicker: {
       value: function setupTicker() {
         var _this = this;
 
@@ -2747,14 +2780,26 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
           var gator = new THREE.Mesh(geometry, faceMaterial);
           gator.castShadow = true;
           gator.scale.set(7, 7, 7);
-          gator.position.copy(_this.niceGatorPosition());
           gator.rotation.y = Math.random() * Math.PI * 2;
           gator._trueMaterial = gator.material.materials[0];
 
+          gator.nicePosition = function () {
+            var p = function () {
+              return (Math.random() - 0.5) * (_this.roomLength - 5);
+            };
+            var y = -gator.scale.y + 1;
+            if (_this.ascending) {
+              y += (Math.random() - 0.5) * 100;
+            }
+            return new THREE.Vector3(p(), y, p());
+          };
+          gator.position.copy(gator.nicePosition());
+
           gator.resetCrawl = function () {
-            gator.crawlTarget = _this.niceGatorPosition();
+            gator.crawlTarget = gator.nicePosition();
             gator.crawlSteps = Math.round(Math.random() * 200) + 100;
             gator.crawlX = (gator.crawlTarget.x - gator.position.x) / gator.crawlSteps;
+            gator.crawlY = (gator.crawlTarget.y - gator.position.y) / gator.crawlSteps;
             gator.crawlZ = (gator.crawlTarget.z - gator.position.z) / gator.crawlSteps;
           };
           gator.resetCrawl();
@@ -2765,6 +2810,7 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
             }
 
             gator.position.x += gator.crawlX;
+            gator.position.y += gator.crawlY;
             gator.position.z += gator.crawlZ;
             gator.crawlSteps -= 1;
           };
@@ -2783,7 +2829,7 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
 
             var scale = gator.scale.x + gator.growthInterval;
             gator.scale.set(scale, scale, scale);
-            gator.position.y = -scale + 1;
+            gator.position.y -= gator.growthInterval;
             gator.growthSteps -= 1;
           };
 
@@ -2813,19 +2859,9 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
             gator.toggleColor(true);
           }
 
-          _this.scene.add(gator);
+          _this.ascensionContainer.add(gator);
           _this.gators.push(gator);
         });
-      }
-    },
-    niceGatorPosition: {
-      value: function niceGatorPosition() {
-        var _this = this;
-
-        var p = function () {
-          return (Math.random() - 0.5) * (_this.roomLength - 5);
-        };
-        return new THREE.Vector3(p(), -6, p());
       }
     },
     makeLights: {
@@ -2882,6 +2918,8 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
           offset: { type: "f", value: 33 },
           exponent: { type: "f", value: 0.75 }
         };
+
+        this.renderer.setClearColor(uniforms.topColor.value, 1);
 
         if (this.scene.fog) {
           this.scene.fog.color.copy(uniforms.bottomColor.value);
