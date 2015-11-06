@@ -6,8 +6,12 @@ var kt = require('kutility');
 var TWEEN = require('tween.js');
 
 var modelLoader = require('./util/model-loader');
-import {createGround, createWall} from './util/builder.es6';
+import {createGround, createWall, makePhysicsMaterial} from './util/builder.es6';
 import {SheenScene} from './sheen-scene.es6';
+
+var ColorPossibility = 0.42;
+var SwampProbability = 0.33;
+var MaxNumberOfGators = 36;
 
 export class MainScene extends SheenScene {
 
@@ -33,7 +37,12 @@ export class MainScene extends SheenScene {
       this.makeLights();
       this.makeSky();
 
-      this.ground = createGround(this.roomLength, 0, (otherObject) => {});
+      this.makeGroundTextures();
+      this.ground = createGround({
+        length: this.roomLength,
+        y: 0,
+        material: this.newGroundMaterial(null)
+      });
       this.ground.addTo(this.scene);
 
       this.walls = [
@@ -59,9 +68,10 @@ export class MainScene extends SheenScene {
     super.doTimedWork();
 
     this.setupTicker();
+    this.refreshGroundTexture(true);
 
     var gatorAdditionInterval = setInterval(() => {
-      if (this.gators.length < 27) {
+      if (this.gators.length < MaxNumberOfGators) {
         this.makeGator();
       }
       else {
@@ -85,6 +95,18 @@ export class MainScene extends SheenScene {
       }
     }
   }
+
+  // Interaction
+
+  spacebarPressed() {
+
+  }
+
+  click() {
+
+  }
+
+  // Creation
 
   setupTicker() {
     var lines = [
@@ -135,7 +157,7 @@ export class MainScene extends SheenScene {
   }
 
   makeGator() {
-    var grayscale = Math.random() < 0.67;
+    var grayscale = Math.random() > ColorPossibility;
 
     modelLoader('/js/models/gator.json', (geometry, materials) => {
       if (!materials) {
@@ -230,18 +252,6 @@ export class MainScene extends SheenScene {
     return new THREE.Vector3(p(), -6, p());
   }
 
-  // Interaction
-
-  spacebarPressed() {
-
-  }
-
-  click() {
-
-  }
-
-  // Creation
-
   makeLights() {
     let container = new THREE.Object3D();
     this.scene.add(container);
@@ -310,6 +320,44 @@ export class MainScene extends SheenScene {
 
     this.sky = new THREE.Mesh(skyGeo, skyMat);
     this.scene.add(this.sky);
+  }
+
+  makeGroundTextures() {
+    var swampTextures = [
+      THREE.ImageUtils.loadTexture('/media/swamp1.jpg'),
+      THREE.ImageUtils.loadTexture('/media/swamp2.jpg'),
+      THREE.ImageUtils.loadTexture('/media/swamp3.jpg'),
+      THREE.ImageUtils.loadTexture('/media/swamp4.jpg'),
+      THREE.ImageUtils.loadTexture('/media/swamp5.jpg')
+    ];
+    swampTextures.forEach(function(texture) {
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(8, 8);
+    });
+
+    this.groundTextures = swampTextures;
+  }
+
+  refreshGroundTexture(recurse) {
+    var texture = (Math.random() < SwampProbability) ? kt.choice(this.groundTextures) : null;
+    var material = this.newGroundMaterial(texture);
+    this.ground.mesh.material = makePhysicsMaterial(material);
+    this.ground.mesh.needsUpdate = true;
+
+    if (recurse) {
+      var nextRefresh = kt.randInt(250, 1000);
+      setTimeout(() => {
+        this.refreshGroundTexture(true);
+      }, nextRefresh);
+    }
+  }
+
+  newGroundMaterial(map) {
+    return new THREE.MeshPhongMaterial({
+      color: 0x101010,
+      side: THREE.DoubleSide,
+      map: map ? map : null
+    });
   }
 
 }

@@ -4,20 +4,18 @@ let Physijs = require('../lib/physi.js');
 var SheenMesh = require('../sheen-mesh');
 var geometryUtil = require('./geometry-util');
 
-export function createGround(length, y, collisionHandler) {
+export function createGround(options) {
+  var length = options.length || 100;
+  var y = options.y || 0;
+  var collisionHandler = options.collisionHandler;
+  var rawMaterial = options.material || new THREE.MeshBasicMaterial();
+
   return new SheenMesh({
     meshCreator: (callback) => {
       let geometry = new THREE.PlaneBufferGeometry(length, length);
       geometryUtil.computeShit(geometry);
 
-      let rawMaterial = new THREE.MeshPhongMaterial({
-        bumpScale: 0.7,
-        color: 0x101010,
-        side: THREE.DoubleSide
-      });
-
-      // lets go high friction, low restitution
-      let material = Physijs.createMaterial(rawMaterial, 0.8, 0.4);
+      let material = makePhysicsMaterial(rawMaterial);
 
       let mesh = new Physijs.BoxMesh(geometry, material, 0);
       mesh.rotation.x = -Math.PI / 2;
@@ -86,7 +84,7 @@ export function createWall(options) {
       });
 
       // lets go high friction, low restitution
-      let material = Physijs.createMaterial(rawMaterial, 0.8, 0.4);
+      let material = makePhysicsMaterial(rawMaterial);
 
       let mesh = new Physijs.BoxMesh(geometry, material, 0);
 
@@ -97,4 +95,9 @@ export function createWall(options) {
 
     collisionHandler: () => {}
   });
+}
+
+export function makePhysicsMaterial(material) {
+  // lets go high friction, low restitution
+  return Physijs.createMaterial(material, 0.8, 0.4);
 }

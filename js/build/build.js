@@ -2565,8 +2565,13 @@ var _utilBuilderEs6 = require("./util/builder.es6");
 
 var createGround = _utilBuilderEs6.createGround;
 var createWall = _utilBuilderEs6.createWall;
+var makePhysicsMaterial = _utilBuilderEs6.makePhysicsMaterial;
 
 var SheenScene = require("./sheen-scene.es6").SheenScene;
+
+var ColorPossibility = 0.42;
+var SwampProbability = 0.33;
+var MaxNumberOfGators = 36;
 
 var MainScene = exports.MainScene = (function (_SheenScene) {
 
@@ -2601,7 +2606,12 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
           this.makeLights();
           this.makeSky();
 
-          this.ground = createGround(this.roomLength, 0, function (otherObject) {});
+          this.makeGroundTextures();
+          this.ground = createGround({
+            length: this.roomLength,
+            y: 0,
+            material: this.newGroundMaterial(null)
+          });
           this.ground.addTo(this.scene);
 
           this.walls = [createWall({ direction: "back", roomLength: this.roomLength, wallHeight: this.roomLength }), createWall({ direction: "left", roomLength: this.roomLength, wallHeight: this.roomLength }), createWall({ direction: "right", roomLength: this.roomLength, wallHeight: this.roomLength }), createWall({ direction: "front", roomLength: this.roomLength, wallHeight: this.roomLength })];
@@ -2625,9 +2635,10 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
         _get(Object.getPrototypeOf(MainScene.prototype), "doTimedWork", this).call(this);
 
         this.setupTicker();
+        this.refreshGroundTexture(true);
 
         var gatorAdditionInterval = setInterval(function () {
-          if (_this.gators.length < 27) {
+          if (_this.gators.length < MaxNumberOfGators) {
             _this.makeGator();
           } else {
             clearInterval(gatorAdditionInterval);
@@ -2652,7 +2663,19 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
         }
       }
     },
+    spacebarPressed: {
+
+      // Interaction
+
+      value: function spacebarPressed() {}
+    },
+    click: {
+      value: function click() {}
+    },
     setupTicker: {
+
+      // Creation
+
       value: function setupTicker() {
         var _this = this;
 
@@ -2703,7 +2726,7 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
       value: function makeGator() {
         var _this = this;
 
-        var grayscale = Math.random() < 0.67;
+        var grayscale = Math.random() > ColorPossibility;
 
         modelLoader("/js/models/gator.json", function (geometry, materials) {
           if (!materials) {
@@ -2803,19 +2826,7 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
         return new THREE.Vector3(p(), -6, p());
       }
     },
-    spacebarPressed: {
-
-      // Interaction
-
-      value: function spacebarPressed() {}
-    },
-    click: {
-      value: function click() {}
-    },
     makeLights: {
-
-      // Creation
-
       value: function makeLights() {
         var container = new THREE.Object3D();
         this.scene.add(container);
@@ -2884,6 +2895,43 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
 
         this.sky = new THREE.Mesh(skyGeo, skyMat);
         this.scene.add(this.sky);
+      }
+    },
+    makeGroundTextures: {
+      value: function makeGroundTextures() {
+        var swampTextures = [THREE.ImageUtils.loadTexture("/media/swamp1.jpg"), THREE.ImageUtils.loadTexture("/media/swamp2.jpg"), THREE.ImageUtils.loadTexture("/media/swamp3.jpg"), THREE.ImageUtils.loadTexture("/media/swamp4.jpg"), THREE.ImageUtils.loadTexture("/media/swamp5.jpg")];
+        swampTextures.forEach(function (texture) {
+          texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+          texture.repeat.set(8, 8);
+        });
+
+        this.groundTextures = swampTextures;
+      }
+    },
+    refreshGroundTexture: {
+      value: function refreshGroundTexture(recurse) {
+        var _this = this;
+
+        var texture = Math.random() < SwampProbability ? kt.choice(this.groundTextures) : null;
+        var material = this.newGroundMaterial(texture);
+        this.ground.mesh.material = makePhysicsMaterial(material);
+        this.ground.mesh.needsUpdate = true;
+
+        if (recurse) {
+          var nextRefresh = kt.randInt(250, 1000);
+          setTimeout(function () {
+            _this.refreshGroundTexture(true);
+          }, nextRefresh);
+        }
+      }
+    },
+    newGroundMaterial: {
+      value: function newGroundMaterial(map) {
+        return new THREE.MeshPhongMaterial({
+          color: 1052688,
+          side: THREE.DoubleSide,
+          map: map ? map : null
+        });
       }
     }
   });
@@ -3681,6 +3729,7 @@ THREE.typeface_js = window._typeface_js;
 
 exports.createGround = createGround;
 exports.createWall = createWall;
+exports.makePhysicsMaterial = makePhysicsMaterial;
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
@@ -3690,20 +3739,18 @@ var Physijs = require("../lib/physi.js");
 var SheenMesh = require("../sheen-mesh");
 var geometryUtil = require("./geometry-util");
 
-function createGround(length, y, collisionHandler) {
+function createGround(options) {
+  var length = options.length || 100;
+  var y = options.y || 0;
+  var collisionHandler = options.collisionHandler;
+  var rawMaterial = options.material || new THREE.MeshBasicMaterial();
+
   return new SheenMesh({
     meshCreator: function (callback) {
       var geometry = new THREE.PlaneBufferGeometry(length, length);
       geometryUtil.computeShit(geometry);
 
-      var rawMaterial = new THREE.MeshPhongMaterial({
-        bumpScale: 0.7,
-        color: 1052688,
-        side: THREE.DoubleSide
-      });
-
-      // lets go high friction, low restitution
-      var material = Physijs.createMaterial(rawMaterial, 0.8, 0.4);
+      var material = makePhysicsMaterial(rawMaterial);
 
       var mesh = new Physijs.BoxMesh(geometry, material, 0);
       mesh.rotation.x = -Math.PI / 2;
@@ -3772,7 +3819,7 @@ function createWall(options) {
       });
 
       // lets go high friction, low restitution
-      var material = Physijs.createMaterial(rawMaterial, 0.8, 0.4);
+      var material = makePhysicsMaterial(rawMaterial);
 
       var mesh = new Physijs.BoxMesh(geometry, material, 0);
 
@@ -3783,6 +3830,11 @@ function createWall(options) {
 
     collisionHandler: function () {}
   });
+}
+
+function makePhysicsMaterial(material) {
+  // lets go high friction, low restitution
+  return Physijs.createMaterial(material, 0.8, 0.4);
 }
 
 },{"../lib/physi.js":4,"../sheen-mesh":7,"./geometry-util":11,"three":15}],11:[function(require,module,exports){
