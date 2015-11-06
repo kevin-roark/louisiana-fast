@@ -2580,6 +2580,7 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
     this.name = "LA FAST";
     this.onPhone = options.onPhone || false;
     this.roomLength = 300;
+    this.halfLength = this.roomLength / 2;
   }
 
   _inherits(MainScene, _SheenScene);
@@ -2598,6 +2599,7 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
 
         if (!this.domMode) {
           this.makeLights();
+          this.makeSky();
 
           this.ground = createGround(this.roomLength, 0, function (otherObject) {});
           this.ground.addTo(this.scene);
@@ -2618,9 +2620,19 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
     },
     doTimedWork: {
       value: function doTimedWork() {
+        var _this = this;
+
         _get(Object.getPrototypeOf(MainScene.prototype), "doTimedWork", this).call(this);
 
         this.setupTicker();
+
+        var gatorAdditionInterval = setInterval(function () {
+          if (_this.gators.length < 27) {
+            _this.makeGator();
+          } else {
+            clearInterval(gatorAdditionInterval);
+          }
+        }, 2666);
       }
     },
     update: {
@@ -2629,6 +2641,12 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
 
         if (this.lightContainer && this.controlObject) {
           this.lightContainer.position.y = this.controlObject.position.y - 5;
+        }
+
+        if (this.gators) {
+          for (var i = 0; i < this.gators.length; i++) {
+            this.gators[i].crawl();
+          }
         }
       }
     },
@@ -2702,25 +2720,52 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
           var gator = new THREE.Mesh(geometry, faceMaterial);
           gator.castShadow = true;
           gator.scale.set(7, 7, 7);
-          gator.position.set(_this.randomPointInRoom(), -5, _this.randomPointInRoom());
+          gator.position.copy(_this.niceGatorPosition());
+          gator.rotation.y = Math.random() * Math.PI * 2;
           gator._trueMaterial = gator.material.materials[0];
 
-          gator.toggleWireframe = function () {
+          gator.resetCrawl = function () {
+            gator.crawlTarget = _this.niceGatorPosition();
+            gator.crawlSteps = Math.round(Math.random() * 200) + 50;
+            gator.crawlX = (gator.crawlTarget.x - gator.position.x) / gator.crawlSteps;
+            gator.crawlZ = (gator.crawlTarget.z - gator.position.z) / gator.crawlSteps;
+          };
+          gator.resetCrawl();
+
+          gator.crawl = function () {
+            if (gator.crawlSteps <= 0) {
+              gator.resetCrawl();
+            }
+
+            gator.position.x += gator.crawlX;
+            gator.position.z += gator.crawlZ;
+            gator.crawlSteps -= 1;
+          };
+
+          gator.toggleWireframe = function (recurse) {
             gator._trueMaterial.wireframe = !gator._trueMaterial.wireframe;
 
-            var nextToggle = kt.randInt(250, 1000);
-            setTimeout(gator.toggleWireframe, nextToggle);
+            if (recurse) {
+              var nextToggle = kt.randInt(250, 1000);
+              setTimeout(function () {
+                gator.toggleWireframe(true);
+              }, nextToggle);
+            }
           };
-          gator.toggleWireframe();
+          gator.toggleWireframe(true);
 
           if (!grayscale) {
-            gator.toggleColor = function () {
+            gator.toggleColor = function (recurse) {
               gator._trueMaterial.color = new THREE.Color(parseInt(Math.random() * 16777215));
 
-              var nextToggle = kt.randInt(250, 1000);
-              setTimeout(gator.toggleColor, nextToggle);
+              if (recurse) {
+                var nextToggle = kt.randInt(250, 1000);
+                setTimeout(function () {
+                  gator.toggleColor(true);
+                }, nextToggle);
+              }
             };
-            gator.toggleColor();
+            gator.toggleColor(true);
           }
 
           _this.scene.add(gator);
@@ -2728,9 +2773,14 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
         });
       }
     },
-    randomPointInRoom: {
-      value: function randomPointInRoom() {
-        return (Math.random() - 0.5) * this.roomLength;
+    niceGatorPosition: {
+      value: function niceGatorPosition() {
+        var _this = this;
+
+        var p = function () {
+          return (Math.random() - 0.5) * (_this.roomLength - 5);
+        };
+        return new THREE.Vector3(p(), -6, p());
       }
     },
     spacebarPressed: {
@@ -2786,6 +2836,34 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
           light.shadowDarkness = 0.6;
           light.shadowMapWidth = light.shadowMapHeight = 2048;
         }
+      }
+    },
+    makeSky: {
+      value: function makeSky() {
+        // lifted from mrdoob.github.io/three.js/examples/webgl_lights_hemisphere.html
+        var vertexShader = document.getElementById("skyVertexShader").textContent;
+        var fragmentShader = document.getElementById("skyFragmentShader").textContent;
+        var uniforms = {
+          topColor: { type: "c", value: new THREE.Color().setHSL(0.6, 1, 0.6) },
+          bottomColor: { type: "c", value: new THREE.Color(13421823) },
+          offset: { type: "f", value: 33 },
+          exponent: { type: "f", value: 0.75 }
+        };
+
+        if (this.scene.fog) {
+          this.scene.fog.color.copy(uniforms.bottomColor.value);
+        }
+
+        var skyGeo = new THREE.SphereGeometry(480, 32, 24);
+        var skyMat = new THREE.ShaderMaterial({
+          vertexShader: vertexShader,
+          fragmentShader: fragmentShader,
+          uniforms: uniforms,
+          side: THREE.BackSide
+        });
+
+        this.sky = new THREE.Mesh(skyGeo, skyMat);
+        this.scene.add(this.sky);
       }
     }
   });

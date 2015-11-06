@@ -31,6 +31,7 @@ export class MainScene extends SheenScene {
 
     if (!this.domMode) {
       this.makeLights();
+      this.makeSky();
 
       this.ground = createGround(this.roomLength, 0, (otherObject) => {});
       this.ground.addTo(this.scene);
@@ -262,6 +263,33 @@ export class MainScene extends SheenScene {
       light.shadowMapWidth = light.shadowMapHeight = 2048;
     }
 
+  }
+
+  makeSky() {
+    // lifted from mrdoob.github.io/three.js/examples/webgl_lights_hemisphere.html
+    var vertexShader = document.getElementById('skyVertexShader').textContent;
+    var fragmentShader = document.getElementById('skyFragmentShader').textContent;
+    var uniforms = {
+      topColor: 	 { type: "c", value: new THREE.Color().setHSL(0.6, 1, 0.6) },
+      bottomColor: { type: "c", value: new THREE.Color(0xccccff) },
+      offset:		 { type: "f", value: 33 },
+      exponent:	 { type: "f", value: 0.75 }
+    };
+
+    if (this.scene.fog) {
+        this.scene.fog.color.copy(uniforms.bottomColor.value);
+    }
+
+    var skyGeo = new THREE.SphereGeometry(480, 32, 24);
+    var skyMat = new THREE.ShaderMaterial({
+      vertexShader: vertexShader,
+      fragmentShader: fragmentShader,
+      uniforms: uniforms,
+      side: THREE.BackSide
+    });
+
+    this.sky = new THREE.Mesh(skyGeo, skyMat);
+    this.scene.add(this.sky);
   }
 
 }
