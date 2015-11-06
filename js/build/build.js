@@ -2610,10 +2610,11 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
           this.ground = createGround({
             length: this.roomLength,
             y: 0,
-            material: this.newGroundMaterial(null)
+            material: this.newStructureMaterial(null)
           });
           this.ground.addTo(this.scene);
 
+          this.makeWallTextures();
           this.walls = [createWall({ direction: "back", roomLength: this.roomLength, wallHeight: this.roomLength }), createWall({ direction: "left", roomLength: this.roomLength, wallHeight: this.roomLength }), createWall({ direction: "right", roomLength: this.roomLength, wallHeight: this.roomLength }), createWall({ direction: "front", roomLength: this.roomLength, wallHeight: this.roomLength })];
           this.walls.forEach(function (wall) {
             wall.addTo(_this.scene);
@@ -2636,6 +2637,7 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
 
         this.setupTicker();
         this.refreshGroundTexture(true);
+        this.refreshWallTexture(true);
 
         var gatorAdditionInterval = setInterval(function () {
           if (_this.gators.length < MaxNumberOfGators) {
@@ -2908,12 +2910,17 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
         this.groundTextures = swampTextures;
       }
     },
+    makeWallTextures: {
+      value: function makeWallTextures() {
+        this.wallTextures = [THREE.ImageUtils.loadTexture("/media/wall1.jpg"), THREE.ImageUtils.loadTexture("/media/wall2.jpg"), THREE.ImageUtils.loadTexture("/media/wall3.jpg"), THREE.ImageUtils.loadTexture("/media/wall4.jpg"), THREE.ImageUtils.loadTexture("/media/wall5.jpg"), THREE.ImageUtils.loadTexture("/media/wall6.jpg"), THREE.ImageUtils.loadTexture("/media/wall7.jpg"), THREE.ImageUtils.loadTexture("/media/wall8.jpg")];
+      }
+    },
     refreshGroundTexture: {
       value: function refreshGroundTexture(recurse) {
         var _this = this;
 
         var texture = Math.random() < SwampProbability ? kt.choice(this.groundTextures) : null;
-        var material = this.newGroundMaterial(texture);
+        var material = this.newStructureMaterial(texture);
         this.ground.mesh.material = makePhysicsMaterial(material);
         this.ground.mesh.needsUpdate = true;
 
@@ -2925,8 +2932,26 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
         }
       }
     },
-    newGroundMaterial: {
-      value: function newGroundMaterial(map) {
+    refreshWallTexture: {
+      value: function refreshWallTexture(recurse) {
+        var _this = this;
+
+        var texture = Math.random() < SwampProbability ? kt.choice(this.wallTextures) : null;
+        var material = this.newStructureMaterial(texture);
+        var wall = kt.choice(this.walls);
+        wall.mesh.material = makePhysicsMaterial(material);
+        wall.mesh.needsUpdate = true;
+
+        if (recurse) {
+          var nextRefresh = kt.randInt(80, 500);
+          setTimeout(function () {
+            _this.refreshWallTexture(true);
+          }, nextRefresh);
+        }
+      }
+    },
+    newStructureMaterial: {
+      value: function newStructureMaterial(map) {
         return new THREE.MeshPhongMaterial({
           color: 1052688,
           side: THREE.DoubleSide,
@@ -3041,7 +3066,7 @@ var Sheen = (function (_ThreeBoiler) {
           scene.simulate(undefined, 1);
         });
 
-        scene.fog = new THREE.Fog(1118481, 1, 400);
+        scene.fog = new THREE.Fog(1118481, 1, 600);
 
         return scene;
       }

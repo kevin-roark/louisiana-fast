@@ -41,10 +41,11 @@ export class MainScene extends SheenScene {
       this.ground = createGround({
         length: this.roomLength,
         y: 0,
-        material: this.newGroundMaterial(null)
+        material: this.newStructureMaterial(null)
       });
       this.ground.addTo(this.scene);
 
+      this.makeWallTextures();
       this.walls = [
         createWall({direction: 'back', roomLength: this.roomLength, wallHeight: this.roomLength}),
         createWall({direction: 'left', roomLength: this.roomLength, wallHeight: this.roomLength}),
@@ -69,6 +70,7 @@ export class MainScene extends SheenScene {
 
     this.setupTicker();
     this.refreshGroundTexture(true);
+    this.refreshWallTexture(true);
 
     var gatorAdditionInterval = setInterval(() => {
       if (this.gators.length < MaxNumberOfGators) {
@@ -307,7 +309,7 @@ export class MainScene extends SheenScene {
     };
 
     if (this.scene.fog) {
-        this.scene.fog.color.copy(uniforms.bottomColor.value);
+      this.scene.fog.color.copy(uniforms.bottomColor.value);
     }
 
     var skyGeo = new THREE.SphereGeometry(480, 32, 24);
@@ -338,9 +340,22 @@ export class MainScene extends SheenScene {
     this.groundTextures = swampTextures;
   }
 
+  makeWallTextures() {
+    this.wallTextures = [
+      THREE.ImageUtils.loadTexture('/media/wall1.jpg'),
+      THREE.ImageUtils.loadTexture('/media/wall2.jpg'),
+      THREE.ImageUtils.loadTexture('/media/wall3.jpg'),
+      THREE.ImageUtils.loadTexture('/media/wall4.jpg'),
+      THREE.ImageUtils.loadTexture('/media/wall5.jpg'),
+      THREE.ImageUtils.loadTexture('/media/wall6.jpg'),
+      THREE.ImageUtils.loadTexture('/media/wall7.jpg'),
+      THREE.ImageUtils.loadTexture('/media/wall8.jpg')
+    ];
+  }
+
   refreshGroundTexture(recurse) {
     var texture = (Math.random() < SwampProbability) ? kt.choice(this.groundTextures) : null;
-    var material = this.newGroundMaterial(texture);
+    var material = this.newStructureMaterial(texture);
     this.ground.mesh.material = makePhysicsMaterial(material);
     this.ground.mesh.needsUpdate = true;
 
@@ -352,7 +367,22 @@ export class MainScene extends SheenScene {
     }
   }
 
-  newGroundMaterial(map) {
+  refreshWallTexture(recurse) {
+    var texture = (Math.random() < SwampProbability) ? kt.choice(this.wallTextures) : null;
+    var material = this.newStructureMaterial(texture);
+    var wall = kt.choice(this.walls);
+    wall.mesh.material = makePhysicsMaterial(material);
+    wall.mesh.needsUpdate = true;
+
+    if (recurse) {
+      var nextRefresh = kt.randInt(80, 500);
+      setTimeout(() => {
+        this.refreshWallTexture(true);
+      }, nextRefresh);
+    }
+  }
+
+  newStructureMaterial(map) {
     return new THREE.MeshPhongMaterial({
       color: 0x101010,
       side: THREE.DoubleSide,
