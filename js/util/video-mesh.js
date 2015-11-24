@@ -1,24 +1,21 @@
 
 var THREE = require('three');
-var $ = require('jquery');
 
 module.exports = VideoMesh;
 
 function VideoMesh(options) {
   this.video = options.video;
-  this.renderedVideoWidth = options.renderedVideoWidth || 150;
-  this.renderedVideoHeight = options.renderedVideoHeight || 75;
-
-  var sourceVideoWidth = options.sourceVideoWidth || 320;
-  var sourceVideoHeight = options.sourceVideoHeight || 180;
+  this.meshWidth = options.meshWidth || 150;
+  this.meshHeight = options.meshHeight || this.meshWidth * 0.5;
+  this.meshDepth = options.meshDepth || 0;
 
   this.videoImage = document.createElement('canvas');
-  this.videoImage.width = sourceVideoWidth;
-  this.videoImage.height = sourceVideoHeight;
+  this.videoImage.width = options.videoWidth || 320;
+  this.videoImage.height = options.videoHeight || 180;
 
   this.videoImageContext = this.videoImage.getContext('2d');
 	this.videoImageContext.fillStyle = '#ffffff'; // background color if no video present
-	this.videoImageContext.fillRect(0, 0, this.renderedVideoWidth, this.renderedVideoHeight);
+	this.videoImageContext.fillRect(0, 0, this.meshWidth, this.meshHeight);
 
   this.videoTexture = new THREE.Texture(this.videoImage);
   this.videoTexture.minFilter = THREE.LinearFilter;
@@ -29,16 +26,19 @@ function VideoMesh(options) {
   this.videoMaterial = new THREE.MeshBasicMaterial({
     map: this.videoTexture,
     overdraw: true,
-    transparent: true,
-    opacity: 1.0
+    side: THREE.DoubleSide
   });
 
-  this.videoGeometry = new THREE.PlaneGeometry(this.renderedVideoWidth, this.renderedVideoHeight);
+  this.videoGeometry = this.meshDepth > 0 ? new THREE.BoxGeometry(this.meshWidth, this.meshHeight, this.meshDepth) : new THREE.PlaneGeometry(this.meshWidth, this.meshHeight);
   this.mesh = new THREE.Mesh(this.videoGeometry, this.videoMaterial);
 }
 
 VideoMesh.prototype.addTo = function(scene) {
   scene.add(this.mesh);
+};
+
+VideoMesh.prototype.removeFrom = function(scene) {
+  scene.remove(this.mesh);
 };
 
 VideoMesh.prototype.update = function() {
@@ -52,7 +52,7 @@ VideoMesh.prototype.update = function() {
 };
 
 VideoMesh.prototype.moveTo = function(x, y, z) {
-  this.mesh.position.set(x, y + this.renderedVideoHeight / 2, z);
+  this.mesh.position.set(x, y + this.meshHeight / 2, z);
 };
 
 VideoMesh.prototype.rotateTo = function(rx, ry, rz) {

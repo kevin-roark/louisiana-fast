@@ -1,4 +1,215 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+"use strict";
+
+var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc && desc.writable) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
+var _inherits = function (subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
+
+var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var THREE = require("three");
+var $ = require("jquery");
+var SheenMesh = require("./sheen-mesh");
+var VideoMesh = require("./util/video-mesh");
+
+var Dahmer = require("./dahmer.es6").Dahmer;
+
+var domContainer = $("body");
+var dahmer = new Dahmer({ $domContainer: domContainer });
+
+var Beacon = exports.Beacon = (function () {
+  function Beacon(options) {
+    _classCallCheck(this, Beacon);
+
+    this.active = false;
+    this.isNear = false;
+
+    this.position = options.position;
+    this.nearbyCallback = options.nearbyCallback;
+    this.nearDistance = options.nearDistance || 20;
+    this.meshesNeedUpdate = options.meshesNeedUpdate !== undefined ? options.meshesNeedUpdate : false;
+    this.shaneMesh = new SheenMesh(options);
+  }
+
+  _createClass(Beacon, {
+    update: {
+      value: function update() {
+        if (this.active && this.meshesNeedUpdate) {
+          this.shaneMesh.update();
+        }
+      }
+    },
+    activate: {
+      value: function activate(scene) {
+        var _this = this;
+
+        this.active = true;
+
+        this.shaneMesh.addTo(scene, function () {
+          if (!_this.hasLoadedBefore) {
+            _this.meshWasLoaded();
+          }
+          _this.hasLoadedBefore = true;
+        });
+      }
+    },
+    deactivate: {
+      value: function deactivate(scene) {
+        this.active = false;
+
+        this.shaneMesh.removeFrom(scene);
+
+        this.updateForFar();
+      }
+    },
+    meshWasLoaded: {
+      value: function meshWasLoaded() {}
+    },
+    relayCameraPosition: {
+      value: function relayCameraPosition(cameraPosition) {
+        var distanceSquared = this.position.distanceToSquared(cameraPosition);
+        this.setNear(distanceSquared < this.nearDistance * this.nearDistance);
+      }
+    },
+    setNear: {
+      value: function setNear(near) {
+        if (near === this.isNear) {
+          return;
+        }
+
+        if (near) {
+          this.updateForNear();
+        } else {
+          this.updateForFar();
+        }
+      }
+    },
+    updateForNear: {
+      value: function updateForNear() {
+        this.isNear = true;
+
+        if (this.nearbyCallback) {
+          this.nearbyCallback(this);
+        }
+      }
+    },
+    updateForFar: {
+      value: function updateForFar() {
+        this.isNear = false;
+      }
+    }
+  });
+
+  return Beacon;
+})();
+
+var VideoBeacon = exports.VideoBeacon = (function (_Beacon) {
+  function VideoBeacon(options) {
+    _classCallCheck(this, VideoBeacon);
+
+    options.modelName = "/js/models/tv.json";
+    options.scale = 12;
+
+    _get(Object.getPrototypeOf(VideoBeacon.prototype), "constructor", this).call(this, options);
+
+    this.videoName = options.videoName;
+    this.previewImageName = options.videoName + ".jpg";
+  }
+
+  _inherits(VideoBeacon, _Beacon);
+
+  _createClass(VideoBeacon, {
+    meshWasLoaded: {
+      value: function meshWasLoaded() {
+        var _this = this;
+
+        _get(Object.getPrototypeOf(VideoBeacon.prototype), "meshWasLoaded", this).call(this);
+
+        var makePreviewMesh = function () {
+          var geometry = new THREE.BoxGeometry(0.75, 0.75 * 0.5, 0.03); // tuned to line up with tv
+          var texture = THREE.ImageUtils.loadTexture(_this.previewImageName);
+          texture.minFilter = THREE.NearestFilter;
+          var material = new THREE.MeshBasicMaterial({
+            color: 16777215,
+            map: texture,
+            side: THREE.DoubleSide
+          });
+          return new THREE.Mesh(geometry, material);
+        };
+
+        this.previewImageMesh = makePreviewMesh();
+        this.previewImageMesh.position.set(0, 0.3, 0); // tuned to line up with tv
+        this.shaneMesh.mesh.add(this.previewImageMesh);
+
+        if (this.videoMesh) {
+          this.videoMesh.addTo(this.shaneMesh.mesh);
+          this.previewImageMesh.visible = false;
+        }
+      }
+    },
+    updateForNear: {
+      value: function updateForNear() {
+        this.video = dahmer.makeVideo(this.videoName);
+        $(this.video).addClass("beacon-video");
+
+        _get(Object.getPrototypeOf(VideoBeacon.prototype), "updateForNear", this).call(this);
+
+        this.video.play();
+
+        this.videoMesh = new VideoMesh({
+          video: this.video,
+          meshWidth: 0.75,
+          meshDepth: 0.03,
+          videoWidth: 853,
+          videoHeight: 480
+        });
+        this.videoMesh.mesh.position.set(0, 0.3, 0); // tuned to line up with tv
+
+        if (this.shaneMesh.mesh) {
+          this.videoMesh.addTo(this.shaneMesh.mesh);
+          this.previewImageMesh.visible = false;
+        }
+      }
+    },
+    updateForFar: {
+      value: function updateForFar() {
+        _get(Object.getPrototypeOf(VideoBeacon.prototype), "updateForFar", this).call(this);
+
+        if (this.video) {
+          this.video.src = "";
+          $(this.video).remove();
+          this.video = null;
+        }
+
+        if (this.videoMesh) {
+          this.videoMesh.removeFrom(this.shaneMesh.mesh);
+          this.videoMesh = null;
+        }
+
+        this.previewImageMesh.visible = true;
+      }
+    },
+    update: {
+      value: function update() {
+        _get(Object.getPrototypeOf(VideoBeacon.prototype), "update", this).call(this);
+
+        if (this.videoMesh) {
+          this.videoMesh.update();
+        }
+      }
+    }
+  });
+
+  return VideoBeacon;
+})(Beacon);
+
+},{"./dahmer.es6":4,"./sheen-mesh":9,"./util/video-mesh":15,"jquery":16,"three":18}],2:[function(require,module,exports){
 /**
  * Originally by James Baicoianu / http://www.baicoianu.com/
  * Modified by Kevin Roark (porkf.at) to meld with pointerlock controls
@@ -391,7 +602,7 @@ module.exports = function (camera, options) {
 	this.updateRotationVector();
 };
 
-},{"./pointerlocker":2,"three":15}],2:[function(require,module,exports){
+},{"./pointerlocker":3,"three":18}],3:[function(require,module,exports){
 "use strict";
 
 module.exports = function () {
@@ -472,7 +683,111 @@ module.exports = function () {
   }
 };
 
-},{}],3:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
+"use strict";
+
+var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var $ = require("jquery");
+
+var Dahmer = exports.Dahmer = (function () {
+  function Dahmer(options) {
+    _classCallCheck(this, Dahmer);
+
+    this.domContainer = options.$domContainer || $("body");
+  }
+
+  _createClass(Dahmer, {
+    makeAudio: {
+      value: function makeAudio(basedFilename) {
+        var audio = document.createElement("audio");
+
+        if (audio.canPlayType("audio/mpeg")) {
+          audio.src = basedFilename + ".mp3";
+        } else {
+          audio.src = basedFilename + ".ogg";
+        }
+
+        audio.preload = true;
+
+        return audio;
+      }
+    },
+    makeVideo: {
+      value: function makeVideo(basedFilename, fullscreen, z) {
+        var video = document.createElement("video");
+
+        var videoURL;
+        if (video.canPlayType("video/mp4").length > 0) {
+          videoURL = basedFilename + ".mp4";
+        } else {
+          videoURL = basedFilename + ".webm";
+        }
+
+        video.src = videoURL;
+        video.preload = true;
+        video.loop = true;
+
+        if (fullscreen) {
+          $(video).addClass("full-screen-video");
+        } else {
+          $(video).addClass("video-overlay");
+        }
+
+        if (z !== undefined) {
+          $(video).css("z-index", z);
+        }
+
+        this.domContainer.append(video);
+
+        return video;
+      }
+    },
+    makeImage: {
+      value: function makeImage(basedFilename, fullscreen, z) {
+        var img = $("<img src=\"" + basedFilename + "\" class=\"image-overlay\"/>");
+
+        if (fullscreen) {
+          img.css("top", "0px");
+          img.css("left", "0px");
+          img.css("width", "100%");
+          img.css("height", "100%");
+        }
+
+        if (z !== undefined) {
+          img.css("z-index", z);
+        }
+
+        this.domContainer.append(img);
+
+        return img;
+      }
+    },
+    makeCanvas: {
+      value: function makeCanvas(z) {
+        var canvas = $("<canvas class=\"canvas-overlay\"></canvas>");
+
+        if (z !== undefined) {
+          canvas.css("z-index", z);
+        }
+
+        this.domContainer.append(canvas);
+
+        return canvas.get(0);
+      }
+    }
+  });
+
+  return Dahmer;
+})();
+
+},{"jquery":16}],5:[function(require,module,exports){
 // ----------------------------------------------------------------------------
 // Buzz, a Javascript HTML5 Audio library
 // v1.1.10 - Built 2015-04-20 13:05
@@ -1217,7 +1532,7 @@ module.exports = function () {
     return buzz;
 });
 
-},{}],4:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 "use strict";
 
 var THREE = require("three");
@@ -2538,7 +2853,7 @@ module.exports = (function () {
 	return Physijs;
 })();
 
-},{"three":15}],5:[function(require,module,exports){
+},{"three":18}],7:[function(require,module,exports){
 "use strict";
 
 var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -2568,6 +2883,8 @@ var createWall = _utilBuilderEs6.createWall;
 var makePhysicsMaterial = _utilBuilderEs6.makePhysicsMaterial;
 
 var SheenScene = require("./sheen-scene.es6").SheenScene;
+
+var VideoBeacon = require("./beacon.es6").VideoBeacon;
 
 var ColorPossibility = 0.42;
 var SwampProbability = 0.33;
@@ -2636,6 +2953,15 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
           // start with one gator
           this.gators = [];
           this.makeGator();
+
+          // tv
+          var tv = new VideoBeacon({
+            videoName: "/media/tv/gym",
+            position: new THREE.Vector3(0, 5, -20),
+            ignorePhysics: true
+          });
+          tv.activate(this.ascensionContainer);
+          this.beacons = [tv];
         }
       }
     },
@@ -2663,16 +2989,28 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
     update: {
       value: function update(dt) {
         _get(Object.getPrototypeOf(MainScene.prototype), "update", this).call(this, dt);
+        var i;
 
         if (this.lightContainer && this.controlObject) {
           this.lightContainer.position.y = this.controlObject.position.y - 5;
         }
 
         if (this.gators) {
-          for (var i = 0; i < this.gators.length; i++) {
+          for (i = 0; i < this.gators.length; i++) {
             var gator = this.gators[i];
             gator.crawl();
             gator.grow();
+          }
+        }
+
+        if (this.beacons) {
+          var relayCamera = this.frameCount % 30 === 0;
+          for (i = 0; i < this.beacons.length; i++) {
+            var beacon = this.beacons[i];
+            if (relayCamera) {
+              beacon.relayCameraPosition(this.controlObject.position);
+            }
+            beacon.update();
           }
         }
 
@@ -3002,7 +3340,7 @@ var MainScene = exports.MainScene = (function (_SheenScene) {
   return MainScene;
 })(SheenScene);
 
-},{"./lib/buzz":3,"./sheen-scene.es6":8,"./util/builder.es6":10,"./util/model-loader":12,"jquery":13,"kutility":14,"three":15,"tween.js":16}],6:[function(require,module,exports){
+},{"./beacon.es6":1,"./lib/buzz":5,"./sheen-scene.es6":10,"./util/builder.es6":12,"./util/model-loader":14,"jquery":16,"kutility":17,"three":18,"tween.js":19}],8:[function(require,module,exports){
 "use strict";
 
 var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -3227,7 +3565,7 @@ $(function () {
   sheen.activate();
 });
 
-},{"./controls/fly-controls":1,"./lib/physi.js":4,"./main-scene.es6":5,"./three-boiler.es6":9,"jquery":13,"three":15,"tween.js":16}],7:[function(require,module,exports){
+},{"./controls/fly-controls":2,"./lib/physi.js":6,"./main-scene.es6":7,"./three-boiler.es6":11,"jquery":16,"three":18,"tween.js":19}],9:[function(require,module,exports){
 "use strict";
 
 var THREE = require("three");
@@ -3446,7 +3784,7 @@ SheenMesh.prototype.fallToFloor = function (threshold, speed) {
 SheenMesh.prototype.additionalInit = function () {};
 SheenMesh.prototype.additionalRender = function () {};
 
-},{"./lib/physi.js":4,"./util/model-loader":12,"kutility":14,"three":15}],8:[function(require,module,exports){
+},{"./lib/physi.js":6,"./util/model-loader":14,"kutility":17,"three":18}],10:[function(require,module,exports){
 "use strict";
 
 var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -3468,6 +3806,7 @@ var SheenScene = exports.SheenScene = (function () {
     this.camera = camera;
     this.scene = scene;
     this.options = options;
+    this.frameCount = 0;
 
     this.name = "sheen scene";
 
@@ -3481,7 +3820,9 @@ var SheenScene = exports.SheenScene = (function () {
 
   _createClass(SheenScene, {
     update: {
-      value: function update() {}
+      value: function update() {
+        this.frameCount += 1;
+      }
     },
     startScene: {
       value: function startScene() {
@@ -3624,7 +3965,7 @@ var SheenScene = exports.SheenScene = (function () {
   return SheenScene;
 })();
 
-},{"jquery":13,"three":15}],9:[function(require,module,exports){
+},{"jquery":16,"three":18}],11:[function(require,module,exports){
 "use strict";
 
 var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -3787,7 +4128,7 @@ THREE.typeface_js = window._typeface_js;
 
 // lol
 
-},{"jquery":13,"three":15}],10:[function(require,module,exports){
+},{"jquery":16,"three":18}],12:[function(require,module,exports){
 "use strict";
 
 exports.createGround = createGround;
@@ -3900,7 +4241,7 @@ function makePhysicsMaterial(material) {
   return Physijs.createMaterial(material, 0.8, 0.4);
 }
 
-},{"../lib/physi.js":4,"../sheen-mesh":7,"./geometry-util":11,"three":15}],11:[function(require,module,exports){
+},{"../lib/physi.js":6,"../sheen-mesh":9,"./geometry-util":13,"three":18}],13:[function(require,module,exports){
 "use strict";
 
 module.exports.computeShit = function (geometry) {
@@ -3908,7 +4249,7 @@ module.exports.computeShit = function (geometry) {
   geometry.computeVertexNormals();
 };
 
-},{}],12:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 "use strict";
 
 var THREE = require("three");
@@ -3923,7 +4264,70 @@ module.exports = function loadModel(name, callback) {
   });
 };
 
-},{"three":15}],13:[function(require,module,exports){
+},{"three":18}],15:[function(require,module,exports){
+"use strict";
+
+var THREE = require("three");
+
+module.exports = VideoMesh;
+
+function VideoMesh(options) {
+  this.video = options.video;
+  this.meshWidth = options.meshWidth || 150;
+  this.meshHeight = options.meshHeight || this.meshWidth * 0.5;
+  this.meshDepth = options.meshDepth || 0;
+
+  this.videoImage = document.createElement("canvas");
+  this.videoImage.width = options.videoWidth || 320;
+  this.videoImage.height = options.videoHeight || 180;
+
+  this.videoImageContext = this.videoImage.getContext("2d");
+  this.videoImageContext.fillStyle = "#ffffff"; // background color if no video present
+  this.videoImageContext.fillRect(0, 0, this.meshWidth, this.meshHeight);
+
+  this.videoTexture = new THREE.Texture(this.videoImage);
+  this.videoTexture.minFilter = THREE.LinearFilter;
+  this.videoTexture.magFilter = THREE.LinearFilter;
+  this.videoTexture.format = THREE.RGBFormat;
+  this.videoTexture.generateMipmaps = false;
+
+  this.videoMaterial = new THREE.MeshBasicMaterial({
+    map: this.videoTexture,
+    overdraw: true,
+    side: THREE.DoubleSide
+  });
+
+  this.videoGeometry = this.meshDepth > 0 ? new THREE.BoxGeometry(this.meshWidth, this.meshHeight, this.meshDepth) : new THREE.PlaneGeometry(this.meshWidth, this.meshHeight);
+  this.mesh = new THREE.Mesh(this.videoGeometry, this.videoMaterial);
+}
+
+VideoMesh.prototype.addTo = function (scene) {
+  scene.add(this.mesh);
+};
+
+VideoMesh.prototype.removeFrom = function (scene) {
+  scene.remove(this.mesh);
+};
+
+VideoMesh.prototype.update = function () {
+  if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
+    this.videoImageContext.drawImage(this.video, 0, 0);
+
+    if (this.videoTexture) {
+      this.videoTexture.needsUpdate = true;
+    }
+  }
+};
+
+VideoMesh.prototype.moveTo = function (x, y, z) {
+  this.mesh.position.set(x, y + this.meshHeight / 2, z);
+};
+
+VideoMesh.prototype.rotateTo = function (rx, ry, rz) {
+  this.mesh.rotation.set(rx, ry, rz);
+};
+
+},{"three":18}],16:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v2.1.3
  * http://jquery.com/
@@ -13130,7 +13534,7 @@ return jQuery;
 
 }));
 
-},{}],14:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 
 /* export something */
 module.exports = new Kutility();
@@ -13704,7 +14108,7 @@ Kutility.prototype.blur = function(el, x) {
   this.setFilter(el, cf + f);
 };
 
-},{}],15:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 var self = self || {};// File:src/Three.js
 
 /**
@@ -49689,7 +50093,7 @@ if (typeof exports !== 'undefined') {
   this['THREE'] = THREE;
 }
 
-},{}],16:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 /**
  * Tween.js - Licensed under the MIT license
  * https://github.com/tweenjs/tween.js
@@ -50565,4 +50969,4 @@ TWEEN.Interpolation = {
 
 })(this);
 
-},{}]},{},[6]);
+},{}]},{},[8]);

@@ -8,6 +8,7 @@ export class SheenScene {
     this.camera = camera;
     this.scene = scene;
     this.options = options;
+    this.frameCount = 0;
 
     this.name = 'sheen scene';
 
@@ -20,7 +21,7 @@ export class SheenScene {
   }
 
   update() {
-
+    this.frameCount += 1;
   }
 
   startScene() {

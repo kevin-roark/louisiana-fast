@@ -8,6 +8,7 @@ var TWEEN = require('tween.js');
 var modelLoader = require('./util/model-loader');
 import {createGround, createWall, makePhysicsMaterial} from './util/builder.es6';
 import {SheenScene} from './sheen-scene.es6';
+import {VideoBeacon} from './beacon.es6';
 
 var ColorPossibility = 0.42;
 var SwampProbability = 0.33;
@@ -72,6 +73,15 @@ export class MainScene extends SheenScene {
       // start with one gator
       this.gators = [];
       this.makeGator();
+
+      // tv
+      var tv = new VideoBeacon({
+        videoName: '/media/tv/gym',
+        position: new THREE.Vector3(0, 5, -20),
+        ignorePhysics: true
+      });
+      tv.activate(this.ascensionContainer);
+      this.beacons = [tv];
     }
   }
 
@@ -96,16 +106,28 @@ export class MainScene extends SheenScene {
 
   update(dt) {
     super.update(dt);
+    var i;
 
     if (this.lightContainer && this.controlObject) {
       this.lightContainer.position.y = this.controlObject.position.y - 5;
     }
 
     if (this.gators) {
-      for (var i = 0; i < this.gators.length; i++) {
+      for (i = 0; i < this.gators.length; i++) {
         var gator = this.gators[i];
         gator.crawl();
         gator.grow();
+      }
+    }
+
+    if (this.beacons) {
+      var relayCamera = this.frameCount % 30 === 0;
+      for (i = 0; i < this.beacons.length; i++) {
+        var beacon = this.beacons[i];
+        if (relayCamera) {
+          beacon.relayCameraPosition(this.controlObject.position);
+        }
+        beacon.update();
       }
     }
 

@@ -2,6 +2,7 @@
 let THREE = require('three');
 let $ = require('jquery');
 let SheenMesh = require('./sheen-mesh');
+let VideoMesh = require('./util/video-mesh');
 import {Dahmer} from './dahmer.es6';
 
 let domContainer = $('body');
@@ -91,21 +92,26 @@ export class VideoBeacon extends Beacon {
   meshWasLoaded() {
     super.meshWasLoaded();
 
-    var geometry = new THREE.PlaneBufferGeometry(0.75, 0.75 * 0.5); // tuned to line up with tv
-    var texture = THREE.ImageUtils.loadTexture(this.previewImageName);
-    texture.minFilter = THREE.NearestFilter;
-    var material = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      map: texture,
-      side: THREE.DoubleSide
-    });
-    var previewImageMesh = new THREE.Mesh(geometry, material);
-    var mirrorPreviewMesh = previewImageMesh.clone();
-    previewImageMesh.position.set(0, 0.29, 0.015); // tuned to line up with tv
-    mirrorPreviewMesh.position.set(0, 0.29, -0.015);
+    var makePreviewMesh = () => {
+      var geometry = new THREE.BoxGeometry(0.75, 0.75 * 0.5, 0.03); // tuned to line up with tv
+      var texture = THREE.ImageUtils.loadTexture(this.previewImageName);
+      texture.minFilter = THREE.NearestFilter;
+      var material = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        map: texture,
+        side: THREE.DoubleSide
+      });
+      return new THREE.Mesh(geometry, material);
+    };
 
-    this.shaneMesh.mesh.add(previewImageMesh);
-    this.shaneMesh.mesh.add(mirrorPreviewMesh);
+    this.previewImageMesh = makePreviewMesh();
+    this.previewImageMesh.position.set(0, 0.3, 0); // tuned to line up with tv
+    this.shaneMesh.mesh.add(this.previewImageMesh);
+
+    if (this.videoMesh) {
+      this.videoMesh.addTo(this.shaneMesh.mesh);
+      this.previewImageMesh.visible = false;
+    }
   }
 
   updateForNear() {
@@ -115,6 +121,20 @@ export class VideoBeacon extends Beacon {
     super.updateForNear();
 
     this.video.play();
+
+    this.videoMesh = new VideoMesh({
+      video: this.video,
+      meshWidth: 0.75,
+      meshDepth: 0.03,
+      videoWidth: 853,
+      videoHeight: 480
+    });
+    this.videoMesh.mesh.position.set(0, 0.3, 0); // tuned to line up with tv
+
+    if (this.shaneMesh.mesh) {
+      this.videoMesh.addTo(this.shaneMesh.mesh);
+      this.previewImageMesh.visible = false;
+    }
   }
 
   updateForFar() {
@@ -124,6 +144,21 @@ export class VideoBeacon extends Beacon {
       this.video.src = '';
       $(this.video).remove();
       this.video = null;
+    }
+
+    if (this.videoMesh) {
+      this.videoMesh.removeFrom(this.shaneMesh.mesh);
+      this.videoMesh = null;
+    }
+
+    this.previewImageMesh.visible = true;
+  }
+
+  update() {
+    super.update();
+
+    if (this.videoMesh) {
+      this.videoMesh.update();
     }
   }
 }
