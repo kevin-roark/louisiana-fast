@@ -78,7 +78,7 @@ export function createWall(options) {
 
       geometryUtil.computeShit(geometry);
 
-      let rawMaterial = new THREE.MeshPhongMaterial({
+      let rawMaterial = new THREE.MeshBasicMaterial({
         color: 0x101010,
         side: THREE.DoubleSide
       });

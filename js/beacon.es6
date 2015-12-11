@@ -80,20 +80,21 @@ export class Beacon {
 
 export class VideoBeacon extends Beacon {
   constructor(options) {
-    options.modelName = '/js/models/tv.json';
-    options.scale = 12;
-
-    super(options);
-
+    this.isVertical = options.isVertical !== undefined ? options.isVertical : false;
     this.videoName = options.videoName;
     this.previewImageName = options.videoName + '.jpg';
+
+    options.modelName = this.isVertical ? '/js/models/phone.json' : '/js/models/tv.json';
+    options.scale = this.isVertical ? 4 : 12;
+
+    super(options);
   }
 
   meshWasLoaded() {
     super.meshWasLoaded();
 
     var makePreviewMesh = () => {
-      var geometry = new THREE.BoxGeometry(0.75, 0.75 * 0.5, 0.03); // tuned to line up with tv
+      var geometry = this.isVertical ? new THREE.BoxGeometry(0.75 * 0.5, 0.75, 2) : new THREE.BoxGeometry(0.75, 0.75 * 0.5, 0.03); // tuned to line up with tv
       var texture = THREE.ImageUtils.loadTexture(this.previewImageName);
       texture.minFilter = THREE.NearestFilter;
       var material = new THREE.MeshBasicMaterial({
@@ -107,6 +108,14 @@ export class VideoBeacon extends Beacon {
     this.previewImageMesh = makePreviewMesh();
     this.previewImageMesh.position.set(0, 0.3, 0); // tuned to line up with tv
     this.shaneMesh.mesh.add(this.previewImageMesh);
+
+    if (this.isVertical) {
+      this.shaneMesh.mesh.rotation.x = Math.PI / 2;
+      this.shaneMesh.mesh.rotation.y = Math.PI / 2;
+      this.previewImageMesh.rotation.x = -Math.PI / 2;
+      this.previewImageMesh.rotation.y = -Math.PI / 2;
+      this.previewImageMesh.scale.set(3, 3, 3);
+    }
 
     if (this.videoMesh) {
       this.videoMesh.addTo(this.shaneMesh.mesh);

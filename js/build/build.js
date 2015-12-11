@@ -113,13 +113,14 @@ var VideoBeacon = exports.VideoBeacon = (function (_Beacon) {
   function VideoBeacon(options) {
     _classCallCheck(this, VideoBeacon);
 
-    options.modelName = "/js/models/tv.json";
-    options.scale = 12;
-
-    _get(Object.getPrototypeOf(VideoBeacon.prototype), "constructor", this).call(this, options);
-
+    this.isVertical = options.isVertical !== undefined ? options.isVertical : false;
     this.videoName = options.videoName;
     this.previewImageName = options.videoName + ".jpg";
+
+    options.modelName = this.isVertical ? "/js/models/phone.json" : "/js/models/tv.json";
+    options.scale = this.isVertical ? 4 : 12;
+
+    _get(Object.getPrototypeOf(VideoBeacon.prototype), "constructor", this).call(this, options);
   }
 
   _inherits(VideoBeacon, _Beacon);
@@ -132,7 +133,7 @@ var VideoBeacon = exports.VideoBeacon = (function (_Beacon) {
         _get(Object.getPrototypeOf(VideoBeacon.prototype), "meshWasLoaded", this).call(this);
 
         var makePreviewMesh = function () {
-          var geometry = new THREE.BoxGeometry(0.75, 0.75 * 0.5, 0.03); // tuned to line up with tv
+          var geometry = _this.isVertical ? new THREE.BoxGeometry(0.75 * 0.5, 0.75, 2) : new THREE.BoxGeometry(0.75, 0.75 * 0.5, 0.03); // tuned to line up with tv
           var texture = THREE.ImageUtils.loadTexture(_this.previewImageName);
           texture.minFilter = THREE.NearestFilter;
           var material = new THREE.MeshBasicMaterial({
@@ -146,6 +147,14 @@ var VideoBeacon = exports.VideoBeacon = (function (_Beacon) {
         this.previewImageMesh = makePreviewMesh();
         this.previewImageMesh.position.set(0, 0.3, 0); // tuned to line up with tv
         this.shaneMesh.mesh.add(this.previewImageMesh);
+
+        if (this.isVertical) {
+          this.shaneMesh.mesh.rotation.x = Math.PI / 2;
+          this.shaneMesh.mesh.rotation.y = Math.PI / 2;
+          this.previewImageMesh.rotation.x = -Math.PI / 2;
+          this.previewImageMesh.rotation.y = -Math.PI / 2;
+          this.previewImageMesh.scale.set(3, 3, 3);
+        }
 
         if (this.videoMesh) {
           this.videoMesh.addTo(this.shaneMesh.mesh);
@@ -3442,7 +3451,7 @@ var Sheen = (function (_ThreeBoiler) {
           scene.simulate(undefined, 1);
         });
 
-        scene.fog = new THREE.Fog(1118481, 1, 600);
+        scene.fog = new THREE.Fog(1118481, 200, 1000);
 
         return scene;
       }
@@ -4217,7 +4226,7 @@ function createWall(options) {
 
       geometryUtil.computeShit(geometry);
 
-      var rawMaterial = new THREE.MeshPhongMaterial({
+      var rawMaterial = new THREE.MeshBasicMaterial({
         color: 1052688,
         side: THREE.DoubleSide
       });
